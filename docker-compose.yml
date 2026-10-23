@@ -1,36 +1,48 @@
-version: '3.8'
-
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - 2181:2181
-
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: kafka
-    # depends_on:
-    #   - zookeeper
     environment:
       CLUSTER_ID: 'hejmpNt8RpuatMNp5efbDw'
-      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
-
-      # --- Configuración de Red Correcta ---
       KAFKA_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://kafka:9093'
       KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://kafka:29092,EXTERNAL://localhost:9092'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-
-      # --- Configuraciones para un solo nodo ---
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     ports:
       - "9092:9092"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-init:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      kafka-topics --bootstrap-server kafka:29092
+      --create --if-not-exists --topic mensajes
+      --partitions 1 --replication-factor 1
+
+  consumer:
+    build: .
+    command: node consumer.js
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+
+  producer:
+    build: .
+    command: node producer.js
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully

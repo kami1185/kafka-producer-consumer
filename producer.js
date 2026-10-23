@@ -2,7 +2,7 @@ const { Kafka } = require('kafkajs');
 
 const kafka = new Kafka({
   clientId: 'mi-productor',
-  brokers: ['kafka:9092'] // 'kafka' es el nombre del servicio en docker-compose.yml
+  brokers: ['kafka:29092'] // 'kafka' es el nombre del servicio en docker-compose.yml
 });
 
 const producer = kafka.producer();
